@@ -1,0 +1,154 @@
+<!--
+	 - For https://chrome.google.com/webstore/detail/mgmiemnjjchgkmgbeljfocdjjnpjnmcg
+	 -->
+<!--
+	 - Remember when including assets, like jQuery, to include them from your extension.
+	 - While you could use CDNs (like Google) to get jQuery quickly, nothing beats 100%
+	 - guaranteed local cache (in other words, in your extension).
+	 - 
+	 - If you absolutely have to hit an external script, try to do it ONLY in this file
+	 - (the background.html), and NOT in your widget. In such cases, try to plan on
+	 - failures, and as best as possible, work around them (caching, timeouts, etc).
+	 -
+	 - Also, avoid heavy resources like Tweet and Like buttons, which likely provide
+	 - no benefit to the user inside of a widget anyway, yet load lots of tiny extra
+	 - assets that can substantially slow down load times.
+	 -->
+<script type="text/javascript">
+// The below variable is essential to building a widget.
+var info = {
+	poke:	 1,	// This is like an API version number. As the amount of required data,
+							// and how it will be used may change, this will hopefully make most
+							// forms of updates backwards compatible. When following this template,
+							// you should NOT change this number. If the NTP extension doesn't know
+							// how to handle the value you send, it will not display use your widget.
+							//
+							// This number will be increasingly important eventually when multiple
+							// widgets (various sizes, functions, etc) can be bundled into 1 extension.
+
+	width:	1,	// MUST be an integer between 1 and 3. Any invalid value will NOT work.
+							//	Wider widgets may be possible in the future. If you have a specific
+							//	need for this limit to be increased, let me know: h4r7.me/contact
+							//
+							// Width will always be calculated with the following formula:
+							// ( info.width * 200 ) + (( info.width - 1 ) * 6 )
+							//		Examples:
+							//		1 Tile	Wide = ( 1 * 200 ) + (( 1 - 1) * 6 ) = 200px wide (Minumum)
+							//		2 Tiles Wide = ( 2 * 200 ) + (( 2 - 1) * 6 ) = 406px wide
+							//		3 Tiles Wide = ( 3 * 200 ) + (( 3 - 1) * 6 ) = 612px wide (Maximum)
+							//
+							// ***	IMPORTANT	***
+							// This value should NEVER change, as it will NOT affect widgets already
+							// placed by users. NEVER, NEVER change it. As mentioned before, it will
+							// eventually be possible to have multiple widgets in the same extension.
+							// ***	IMPORTANT	***
+
+	height: 1,	// MUST be an integer between 1 and 3. Any invalid value will NOT work.
+							//	Taller widgets will likely never be possible.
+							//
+							// Height will always be calculated with the following formula:
+							// ( info.height * 200 ) + (( info.height - 1 ) * 6 )
+							//		Examples:
+							//		1 Tile	Tall = ( 1 * 200 ) + (( 1 - 1) * 6 ) = 200px tall (Minumum)
+							//		2 Tiles Tall = ( 2 * 200 ) + (( 2 - 1) * 6 ) = 406px tall
+							//		3 Tiles Tall = ( 3 * 200 ) + (( 3 - 1) * 6 ) = 612px tall (Maximum)
+							//
+							// ***	IMPORTANT	***
+							// This value should NEVER change, as it will NOT affect widgets already
+							// placed by users. NEVER, NEVER change it. As mentioned before, it will
+							// eventually be possible to have multiple widgets in the same extension.
+							// ***	IMPORTANT	***
+	path:	 "widget.html",
+							// This value MUST be a relative path to a file packaged within your
+							// extension. DO NOT include a "/" at the start of the variable, and
+							// please remember that this value should NEVER change.
+							//
+							// ***	IMPORTANT	***
+							// This value should NEVER change, as it will NOT affect widgets already
+							// placed by users. NEVER, NEVER change it. As mentioned before, it will
+							// eventually be possible to have multiple widgets in the same extension.
+							// ***	IMPORTANT	***
+}
+
+// This listener is essential to building a widget.
+chrome.extension.onRequestExternal.addListener(function(request, sender, sendResponse) {
+	// The NTP extension will "poke" all installed extensions. Only extensions listening
+	// will respond with the necessary information (entered above). Changing this value
+	// will cause your widget to not display within the NTP widget manager.
+	if(request === "mgmiemnjjchgkmgbeljfocdjjnpjnmcg-poke") {
+		// Now let's respond with our details. I decided to go with this method instead of
+		// the sendResponse function for security. Responses carry no identification, but
+		// luckily, normal sendRequests do.
+		chrome.extension.sendRequest(
+			sender.id,
+			{
+				head: "mgmiemnjjchgkmgbeljfocdjjnpjnmcg-pokeback",
+				body: info,
+			}
+		);
+	}
+});
+
+chrome.extension.onRequest.addListener(function (request, sender, sendResponse) {
+	if (request.force == 'getGameData') {
+		getGameData();
+		sendResponse({
+			'done': true
+		});
+	}
+	if (request.force == 'getPlayerData') {
+		getPlayerData();
+		sendResponse({
+			'done': true
+		});
+	}
+});
+
+function getGameData() {
+	var request = new XMLHttpRequest();
+	request.open('GET', 'http://steamcommunity.com/id/' + localStorage.getItem('customurl') + '/games?tab=all&xml=1', false);
+	request.send(null);
+
+	if (request.status == 200) {
+		var games = request.responseXML.documentElement.getElementsByTagName('game');
+		var gamedata = {};
+		for (var i = games.length - 1; i >= 0; i--) {
+			gamedata[i] = {
+				"appID" : games[i].getElementsByTagName('appID')[0].textContent,
+				"name" : games[i].getElementsByTagName('name')[0].textContent,
+				"logo" : games[i].getElementsByTagName('logo')[0].textContent
+			};
+		}
+		localStorage.setItem('gamedata', JSON.stringify(gamedata));
+		localStorage.setItem('gamecount', games.length);
+	}
+}
+
+function getPlayerData() {
+	var request = new XMLHttpRequest();
+	request.open('GET', 'http://steamcommunity.com/id/' + localStorage.getItem('customurl') + '/?xml=1', false);
+	request.send(null);
+
+	if (request.status == 200) {
+		var profile = request.responseXML.documentElement;
+		var profiledata = {};
+		profiledata = {
+			"steamID" : profile.getElementsByTagName('steamID')[0].textContent,
+			"avatarMedium" : profile.getElementsByTagName('avatarMedium')[0].textContent,
+			"stateMessage" : profile.getElementsByTagName('stateMessage')[0].textContent
+		};
+		localStorage.setItem('profiledata', JSON.stringify(profiledata));
+	}
+}
+
+if (localStorage.getItem('gamedata') == null) {
+	setInterval(getGameData, 60*60*1000);
+	getGameData();
+}
+if (localStorage.getItem('customurl') !== null) {
+	setInterval(getPlayerData, 5*60*1000);
+	getPlayerData();
+}
+
+
+</script>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<!--
+		 - For https://chrome.google.com/webstore/detail/mgmiemnjjchgkmgbeljfocdjjnpjnmcg
+		 -->
+
+		<style>
+			body {
+				/*
+				 * The below three lines, imo, add to user experience.
+				 * The first two will disable text selection.
+				 * The last one will always use the default cursor, even
+				 * over text. If you have text your users may want to copy,
+				 * I do NOT advise these 3 lines!
+				 */
+				user-select: none;
+				-webkit-user-select: none;
+				cursor: default;
+			}
+		</style>
+
+
+		<style>
+			/* RESET */
+			html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-weight:inherit;font-style:inherit;font-size:100%;font-family:inherit;vertical-align:baseline;}:focus{outline:0;}body{line-height:1;color:black;background:white;}ol,ul{list-style:none;}table{border-collapse:separate;border-spacing:0;}caption,th,td{text-align:left;font-weight:normal;}blockquote:before,blockquote:after,q:before,q:after{content:"";}blockquote,q{quotes:"" "";}
+
+			html, body {
+				height:100%;
+				overflow:hidden;
+				margin:0;
+				padding:0;
+				font: 12px 'Segoe UI', 'Segoe', 'Helvetica Neue', Helvetica, sans-serif;
+				text-align: center;
+				display:-webkit-box;
+				-webkit-box-orient:vertical;
+				-webkit-box-pack:center;
+				-webkit-box-align:center;
+				width:100%;
+				height:100%;
+				background: #252525;
+				color: #fff;
+				text-shadow: 0px 1px 2px #000;
+			}
+			#widget {
+				display: none; /* initialize() shows it if they have a custom url saved. */
+				background: #252525 url('bg.png') center center no-repeat;
+				width: 184px;
+				height: 184px;
+				padding: 8px;
+				position: relative;
+			}
+			#profile {
+				display: none;
+				overflow: hidden;
+				height: 70px;
+			}
+			#edit-link {
+				position: absolute;
+				top: 8px;
+				left: 8px;
+				background: white;
+				display: none;
+				width: 18px;
+				height: 18px;
+				border-radius: 8px;
+				color: #252525;
+				text-align: center;
+				line-height: 18px;
+				font-weight: bold;
+				text-shadow: none;
+				box-shadow: 0px 1px 3px #000;
+			}
+			#profile-image {
+				background: url('ajax-loader.gif') center center no-repeat;
+				float: left;
+				margin-right: 8px;
+				border-radius: 4px;
+				display: block;
+			}
+			#profile-image:hover ~ #edit-link {
+				display: block;
+			}
+			#profile-steamid {
+				float: left;
+				width: 112px;
+				height: 50px;
+				text-align: left;
+			}
+			#all-link {
+				float: left;
+				width: 112px;
+				text-align: left;
+			}
+			#credit {
+				display: block;
+				color: #555;
+				margin-bottom: 10px;
+			}
+			#credit:hover {
+				color: #999;
+			}
+			#randomize-link {
+				display: none; /* initialize() shows it after loading the games list. */
+				margin-bottom: 5px;
+			}
+			#game-logo {
+				background: url('ajax-loader.gif') center center no-repeat;
+				border-radius: 4px;
+				box-shadow: 0px 1px 3px #000;
+				display: block;
+				margin: 0 auto;
+			}
+			a {
+				color: white;
+				text-decoration: none;
+			}
+
+		</style>
+		<script type="text/javascript">
+			window.onload = function() {
+				console.log('window.onload');
+				document.getElementById('setup').onsubmit = save;
+				if(localStorage.getItem('customurl') == null) {
+					//Prompt for custom url (built in by default)
+				} else {
+					initialize();
+				}
+			};
+
+			function save(event) {
+				console.log('save()');
+				urlField = document.getElementById('setup-url');
+				var url = urlField.value;
+				if (url == null || url == undefined || url.length == 0) {
+					urlField.style.borderColor = 'red';
+				} else {
+					localStorage.setItem('customurl', url);
+					initialize();
+				}
+				return false;
+				event.preventDefault();
+			}
+
+			function initialize() {
+				console.log('initialize()');
+				document.getElementById('setup').style.display = 'none';
+				document.getElementById('widget').style.display = 'block';
+				if (localStorage.getItem('profiledata') == null) {
+					console.log('profiledata was null');
+					chrome.extension.sendRequest({
+						'force': 'getPlayerData'
+					},
+					function(response) {
+						updateProfile();
+						document.getElementById('profile').style.display = 'block';
+					});
+				} else {
+					console.log('profiledata was not null');
+					updateProfile();
+					document.getElementById('profile').style.display = 'block';
+				}
+				if (localStorage.getItem('gamedata') == null) {
+					console.log('gamedata was null');
+					chrome.extension.sendRequest({
+						'force': 'getGameData'
+					},
+					function(response) {
+						randomizeGame();
+						document.getElementById('randomize-link').style.display = 'block';
+					});
+				} else {
+					console.log('gamedata was not null');
+					randomizeGame();
+					document.getElementById('randomize-link').style.display = 'block';
+				}
+			}
+			function randomizeGame() {
+				console.log('randomizeGame()');
+				var gamedata = JSON.parse(localStorage.getItem('gamedata'));
+				var gamecount = localStorage.getItem('gamecount');
+				var randomgame = Math.floor(Math.random() * gamecount);
+				console.log(gamedata[randomgame]);
+				document.getElementById('game-logo').src = gamedata[randomgame].logo;
+				document.getElementById('game-logo').alt = 'Play ' + gamedata[randomgame].name;
+				document.getElementById('game-link').title = 'Play ' + gamedata[randomgame].name;
+				document.getElementById('game-link').href = 'steam://run/' + gamedata[randomgame].appID;
+				document.getElementById('all-link').href = 'http://www.steamcommunity.com/id/' + localStorage.getItem('customurl') + '/games?tab=all';
+				document.getElementById('all-link').innerHTML = 'View all ' + gamecount + ' games &raquo;';
+			}
+			function updateProfile() {
+				console.log('updateProfile()');
+				var profiledata = JSON.parse(localStorage.getItem('profiledata'));
+				//document.getElementById('profile').href = 'http://www.steamcommunity.com/id/' + localStorage.getItem('customurl') + '/';
+				document.getElementById('profile-steamid').innerHTML = profiledata.steamID;
+				document.getElementById('profile-image').src = profiledata.avatarMedium;
+			}
+			function editProfile() {
+				console.log('editProfile()');
+				localStorage.clear();
+				document.getElementById('widget').style.display = 'none';
+				document.getElementById('setup').style.display = 'block';
+			}
+		</script>
+	</head>
+
+	<body>
+		<form id="setup">
+			<label>http://steamcommunity.com/id/</label><input id="setup-url" type="text" placeholder="Your Steam Custom URL" />
+			<button id="setup-save">Save &amp; Start</button>
+		</form>
+		<div id="widget">
+			<div id="profile" href="javascript:void(0);" target="_top">
+				<img id="profile-image" width="64" height="64" alt="" />
+				<a id="edit-link" href="javascript:editProfile();">X</a>
+				<h1 id="profile-steamid">Loading...</h1>
+				<a id="all-link" href="javascript:void(0);" target="_top">View all games &raquo;</a>
+			</div>
+			<a id="credit" href="http://store.steampowered.com/" target="_top">Powered by Steam</a>
+			<a id="randomize-link" href="javascript:randomizeGame();">Not feeling it? Randomize!</a>
+			<a id="game-link" href="javascript:void(0);">
+				<img id="game-logo" width="184" height="69" alt="" />
+			</a>
+		</div>
+	</body>
+</html>
